@@ -12,7 +12,7 @@ body {
   height: 100%;
   background: #000;
   color: #fff;
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: "Courier New", Courier, monospace;
   overflow: hidden;
   cursor: none;
 }
@@ -129,6 +129,7 @@ body {
   top: 0;
   left: 0;
   z-index: 100;
+  display: block;
   pointer-events: none;
   font-weight: 300;
   line-height: 1;
@@ -175,10 +176,50 @@ body {
 }
 
 .cross:hover {
-  transform: scale(1.08);
+  transform: scale(1.06);
+}
+
+.enter-btn {
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  padding: 0.5rem 1.35rem;
+  cursor: none;
+  animation: enterFadeIn 1.4s ease 2s forwards;
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease, transform 0.3s ease;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.enter-btn:hover,
+.enter-btn:focus-visible {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(0, 0, 0, 0.78);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+@keyframes enterFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .intro-secret {
+  display: none;
   font-size: 0.72rem;
   color: rgba(255, 255, 255, 0.45);
   letter-spacing: 0.1em;
@@ -188,6 +229,7 @@ body {
 }
 
 .intro-secret.visible {
+  display: block;
   opacity: 1;
   transform: translateY(0);
 }
@@ -264,6 +306,92 @@ body {
 @keyframes pulseMute {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.65; }
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  padding: 0.3rem 0.5rem;
+  transition: border-color 0.3s ease, background 0.3s ease;
+}
+
+.volume-control:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.volume-label {
+  font-size: 0.62rem;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  user-select: none;
+}
+
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 4.25rem;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 1px;
+  cursor: pointer;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 1px;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 7px;
+  height: 7px;
+  margin-top: -2.5px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 1px;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.volume-slider:hover::-webkit-slider-thumb,
+.volume-slider:active::-webkit-slider-thumb {
+  background: #fff;
+  transform: scale(1.1);
+}
+
+.volume-slider::-moz-range-track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 1px;
+  border: none;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 7px;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 1px;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+  cursor: pointer;
+}
+
+.volume-slider:focus-visible::-webkit-slider-thumb,
+.volume-slider:focus-visible::-moz-range-thumb {
+  outline: 1px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.volume-control.muted {
+  opacity: 0.55;
 }
 
 /* ── Main ── */
@@ -458,12 +586,14 @@ body {
   font-size: 0.65rem;
   color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.12em;
+  display: none;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .copy-toast.visible {
+  display: block;
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
@@ -490,6 +620,17 @@ body {
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
     width: 100%;
+  }
+
+  .volume-control {
+    grid-column: 1 / -1;
+    justify-content: center;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .volume-slider {
+    width: 100%;
+    max-width: 10rem;
   }
 
   .control-btn {
@@ -566,6 +707,7 @@ body {
   }
 
   .control-btn,
+  .enter-btn,
   .typewriter.glitch-text {
     cursor: pointer;
   }
