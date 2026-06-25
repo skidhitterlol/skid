@@ -5,81 +5,123 @@
     <title>skid.gg</title>
     <style>
         body {
-            background-color: #0a0a0a;
-            color: #00ff9d;
-            font-family: 'Courier New', monospace;
             margin: 0;
             padding: 0;
+            background-color: #0a0a0a;
+            color: white;
+            font-family: system-ui, -apple-system, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            overflow: hidden;
+        }
+        .container {
             text-align: center;
+            z-index: 2;
         }
-        #center {
-            max-width: 800px;
-            padding: 20px;
+        .card {
+            background: rgba(20, 20, 20, 0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 40px 50px;
+            max-width: 420px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
-        pre {
-            font-size: 18px;
-            line-height: 1.2;
-            margin: 10px 0;
-        }
-        .ascii {
-            font-size: 20px;
-            line-height: 1.1;
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.2);
             margin-bottom: 20px;
         }
-        a {
-            color: #00ff9d;
+        h1 {
+            margin: 10px 0 5px;
+            font-size: 32px;
+        }
+        .username {
+            color: #aaa;
+            margin-bottom: 25px;
+        }
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .link {
+            background: rgba(255,255,255,0.08);
+            padding: 14px 20px;
+            border-radius: 12px;
             text-decoration: none;
+            color: white;
+            transition: all 0.2s ease;
         }
-        a:hover {
-            text-decoration: underline;
+        .link:hover {
+            background: rgba(255,255,255,0.15);
         }
-        .marquee {
-            overflow: hidden;
-            white-space: nowrap;
-            margin: 20px 0;
-        }
-        .marquee span {
-            display: inline-block;
-            animation: marquee 8s linear infinite;
-        }
-        @keyframes marquee {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
+        .snow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
         }
     </style>
 </head>
-<body oncontextmenu="return false;">
+<body>
 
-    <div id="center">
-        <!-- ASCII Art -->
-        <div class="ascii">
-┏━━━┓ ┏┓┏━┓ ┏━━┓ ┏━━━┓<br>
-┃┏━┓┃ ┃┃┃┏┛ ┗┫┣┛ ┗┓┏┓┃<br>
-┃┗━━┓ ┃┗┛┛   ┃┃    ┃┃┃┃<br>
-┗━━┓┃ ┃┏┓┃   ┃┃    ┃┃┃┃<br>
-┃┗━┛┃ ┃┃┃┗┓ ┏┫┣┓ ┏┛┗┛┃<br>
-┗━━━┛ ┗┛┗━┛ ┗━━┛ ┗━━━┛
+    <!-- Background Music -->
+    <audio id="bg-music" loop autoplay>
+        <source src="your-music.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="container">
+        <div class="card">
+            <img src="https://r2.guns.lol/5f70f621-57ba-4f1c-8563-1c9bedd0b105.png" class="avatar" alt="Avatar">
+            
+            <h1>sources</h1>
+            <div class="username">skidhitter</div>
+
+            <div class="links">
+                <a href="https://t.me/vuInerablity" class="link" target="_blank">Telegram</a>
+                <a href="https://steamcommunity.com/profiles/76561197965874910" class="link" target="_blank">Steam</a>
+            </div>
         </div>
-
-        <pre>𝒂𝒃𝒐𝒗𝒆 & 𝒃𝒆𝒚𝒐𝒏𝒅 𝒕𝒉𝒆 𝒉𝒂𝒄𝒌𝒔</pre>
-
-        <!-- Marquee -->
-        <div class="marquee">
-            <span>[ above & beyond the hacks • skid.gg • gamesense • above & beyond the hacks ]</span>
-        </div>
-
-        <pre>
-<a href="https://steamcommunity.com/profiles/76561197965874910">-Skid™</a>
-        </pre>
-
-        <pre>
-<a href="http://gamesense.pub">It's only game... why you have to be mad?</a>
-        </pre>
     </div>
+
+    <script>
+        // Background music volume
+        const music = document.getElementById('bg-music');
+        if (music) {
+            music.volume = 0.12;
+        }
+
+        // Simple snow effect
+        function createSnow() {
+            const snow = document.createElement('div');
+            snow.className = 'snow';
+            snow.innerHTML = '❄';
+            snow.style.position = 'fixed';
+            snow.style.left = Math.random() * window.innerWidth + 'px';
+            snow.style.top = '-10px';
+            snow.style.fontSize = Math.random() * 20 + 10 + 'px';
+            snow.style.opacity = Math.random();
+            snow.style.zIndex = '1';
+            document.body.appendChild(snow);
+
+            let fall = setInterval(() => {
+                snow.style.top = (parseFloat(snow.style.top) + 2) + 'px';
+                if (parseFloat(snow.style.top) > window.innerHeight) {
+                    clearInterval(fall);
+                    snow.remove();
+                }
+            }, 30);
+        }
+
+        setInterval(createSnow, 300);
+    </script>
 
 </body>
 </html>
