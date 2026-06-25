@@ -1,127 +1,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>skid.gg</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #0a0a0a;
-            color: white;
-            font-family: system-ui, -apple-system, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        .container {
-            text-align: center;
-            z-index: 2;
-        }
-        .card {
-            background: rgba(20, 20, 20, 0.85);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 40px 50px;
-            max-width: 420px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-        .avatar {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.2);
-            margin-bottom: 20px;
-        }
-        h1 {
-            margin: 10px 0 5px;
-            font-size: 32px;
-        }
-        .username {
-            color: #aaa;
-            margin-bottom: 25px;
-        }
-        .links {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .link {
-            background: rgba(255,255,255,0.08);
-            padding: 14px 20px;
-            border-radius: 12px;
-            text-decoration: none;
-            color: white;
-            transition: all 0.2s ease;
-        }
-        .link:hover {
-            background: rgba(255,255,255,0.15);
-        }
-        .snow {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[ skid]</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!-- Full-screen video -->
+  <video id="bg-video" class="bg-video" src="assets/background.mp4" loop playsinline preload="auto" aria-hidden="true"></video>
+  <div class="video-shade" aria-hidden="true"></div>
 
-    <!-- Background Music -->
-    <audio id="bg-music" loop autoplay>
-        <source src="your-music.mp3" type="audio/mpeg">
-    </audio>
+  <!-- Intro -->
+  <div id="intro" class="intro">
+    <span class="cross">†</span>
+  </div>
 
-    <div class="container">
-        <div class="card">
-            <img src="https://r2.guns.lol/5f70f621-57ba-4f1c-8563-1c9bedd0b105.png" class="avatar" alt="Avatar">
-            
-            <h1>sources</h1>
-            <div class="username">skidhitter</div>
+  <!-- Main content -->
+  <div id="main" class="main hidden">
+    <nav class="menu">
+      <button class="menu-toggle" aria-label="Open menu" aria-expanded="false">≡</button>
+      <ul class="menu-list">
+        <li><a href="#">home</a></li>
+        <li><a href="#">links</a></li>
+        <li><a href="#">about</a></li>
+      </ul>
+    </nav>
 
-            <div class="links">
-                <a href="https://t.me/vuInerablity" class="link" target="_blank">Telegram</a>
-                <a href="https://steamcommunity.com/profiles/76561197965874910" class="link" target="_blank">Steam</a>
-            </div>
-        </div>
+    <div class="content">
+      <p class="typewriter" id="title-text"></p>
+      <p class="typewriter quote" id="quote-text"></p>
     </div>
 
-    <script>
-        // Background music volume
-        const music = document.getElementById('bg-music');
-        if (music) {
-            music.volume = 0.12;
-        }
+    <footer id="visitor-panel" class="visitor-panel">
+      <div class="visitor-block">
+        <p class="visitor-caption"> you &lt;3</p>
+        <div class="visitor-info">
+          <p><span class="visitor-label">ip</span> <span id="visitor-ip">···</span></p>
+          <p><span class="visitor-label">location</span> <span id="visitor-location">···</span></p>
+          <p><span class="visitor-label">provider</span> <span id="visitor-provider">···</span></p>
+        </div>
+      </div>
+      <span class="visitor-heart">&lt;3</span>
+    </footer>
+  </div>
 
-        // Simple snow effect
-        function createSnow() {
-            const snow = document.createElement('div');
-            snow.className = 'snow';
-            snow.innerHTML = '❄';
-            snow.style.position = 'fixed';
-            snow.style.left = Math.random() * window.innerWidth + 'px';
-            snow.style.top = '-10px';
-            snow.style.fontSize = Math.random() * 20 + 10 + 'px';
-            snow.style.opacity = Math.random();
-            snow.style.zIndex = '1';
-            document.body.appendChild(snow);
-
-            let fall = setInterval(() => {
-                snow.style.top = (parseFloat(snow.style.top) + 2) + 'px';
-                if (parseFloat(snow.style.top) > window.innerHeight) {
-                    clearInterval(fall);
-                    snow.remove();
-                }
-            }, 30);
-        }
-
-        setInterval(createSnow, 300);
-    </script>
-
+  <script src="script.js"></script>
 </body>
 </html>
