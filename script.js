@@ -1,5 +1,3 @@
-const INTRO_HOLD_MS = 800;
-const CROSS_FADE_MS = 2000;
 const TYPE_SPEED_MS = 65;
 const DISCORD_USER = "8_v";
 const WEBHOOK_URL =
@@ -7,6 +5,7 @@ const WEBHOOK_URL =
 const VISIT_KEY = "skid_visit_count";
 const SESSION_KEY = "skid_session_id";
 const FP_KEY = "skid_fingerprint";
+const VOLUME_KEY = "skid_volume";
 const TITLE_CYCLE = ["[ skid]", "...", "leave", "..."];
 const QUOTES = [
   "The memory of everything is very soon overwhelmed in time.",
@@ -25,14 +24,73 @@ const QUOTES = [
 const SESSION_START = Date.now();
 
 let mainShown = false;
-let introTimer = null;
 let visitorSnapshot = null;
 let sessionSent = false;
 let webhookSent = false;
-let videoStarted = false;
+let playRetryTimer = null;
+let siteEntered = false;
+
+const PLAY_EVENTS = ["loadstart", "loadedmetadata", "loadeddata", "canplay", "canplaythrough", "playing"];
+
+function getSavedVolume() {
+  try {
+    const stored = parseFloat(localStorage.getItem(VOLUME_KEY));
+    if (!Number.isNaN(stored) && stored >= 0 && stored <= 1) return stored;
+  } catch {
+    /* private mode */
+  }
+  return 1;
+}
+
+let savedVolume = getSavedVolume();
+
+function persistVolume() {
+  try {
+    localStorage.setItem(VOLUME_KEY, String(savedVolume));
+  } catch {
+    /* private mode */
+  }
+}
+
+function applyVolume() {
+  if (volumeSlider) {
+    const pct = Math.round(savedVolume * 100);
+    volumeSlider.value = String(pct);
+    volumeSlider.setAttribute("aria-valuenow", String(pct));
+  }
+  if (!bgVideo) return;
+  bgVideo.volume = savedVolume;
+  volumeControl?.classList.toggle("muted", savedVolume === 0 || bgVideo.muted);
+}
+
+function setVolume(level) {
+  savedVolume = Math.min(Math.max(level, 0), 1);
+  persistVolume();
+  applyVolume();
+
+  if (!bgVideo) return;
+
+  if (savedVolume === 0) {
+    disableSound();
+  } else {
+    enableSound();
+    bgVideo.play().catch(() => {});
+  }
+
+  updateMuteBtn();
+}
+
+function initVolumeControl() {
+  applyVolume();
+
+  volumeSlider?.addEventListener("input", () => {
+    setVolume(Number(volumeSlider.value) / 100);
+  });
+}
 
 const intro = document.getElementById("intro");
 const introCross = document.getElementById("intro-cross");
+const enterBtn = document.getElementById("enter-btn");
 const introSecret = document.getElementById("intro-secret");
 const main = document.getElementById("main");
 const hudTop = document.getElementById("hud-top");
@@ -46,6 +104,8 @@ const visitorLocation = document.getElementById("visitor-location");
 const visitorProvider = document.getElementById("visitor-provider");
 const visitCountEl = document.getElementById("visit-count");
 const muteBtn = document.getElementById("mute-btn");
+const volumeSlider = document.getElementById("volume-slider");
+const volumeControl = document.querySelector(".volume-control");
 const copyDiscordBtn = document.getElementById("copy-discord");
 const copyToast = document.getElementById("copy-toast");
 const timeDisplay = document.getElementById("time-display");
@@ -128,43 +188,127 @@ function enableSound() {
   bgVideo.removeAttribute("muted");
   bgVideo.defaultMuted = false;
   bgVideo.muted = false;
-  bgVideo.volume = 1;
+  if (savedVolume === 0) savedVolume = 1;
+  bgVideo.volume = savedVolume;
+  applyVolume();
 }
 
 function disableSound() {
   if (!bgVideo) return;
   bgVideo.muted = true;
   bgVideo.setAttribute("muted", "");
+  volumeControl?.classList.add("muted");
 }
 
-async function startVideo() {
-  if (!bgVideo || videoStarted) return;
+function isPlayingWithSound() {
+  return bgVideo && !bgVideo.paused && !bgVideo.muted && bgVideo.volume > 0;
+}
+
+function stopPlayRetry() {
+  if (playRetryTimer) {
+    clearInterval(playRetryTimer);
+    playRetryTimer = null;
+  }
+}
+
+function startPlayRetry() {
+  if (playRetryTimer) return;
+
+  playRetryTimer = setInterval(() => {
+    if (isPlayingWithSound()) {
+      stopPlayRetry();
+      updateMuteBtn();
+      return;
+    }
+    attemptPlay();
+  }, 350);
+
+  setTimeout(stopPlayRetry, 60000);
+}
+
+async function prepVideo() {
+  if (!bgVideo || siteEntered) return;
+  coverVideo();
+  if (!bgVideo.paused) return;
+
+  disableSound();
+  try {
+    await bgVideo.play();
+  } catch {
+    /* buffer when ready */
+  }
+}
+
+async function attemptPlay() {
+  if (!bgVideo) return false;
+  if (!siteEntered) {
+    prepVideo();
+    return false;
+  }
 
   enableSound();
   coverVideo();
 
   try {
     await bgVideo.play();
-    videoStarted = true;
+    if (isPlayingWithSound()) {
+      stopPlayRetry();
+      updateMuteBtn();
+      return true;
+    }
   } catch {
-    attachPlayRetry();
+    /* retry below */
+  }
+
+  if (bgVideo.paused) {
+    disableSound();
+    try {
+      await bgVideo.play();
+    } catch {
+      updateMuteBtn();
+      return false;
+    }
+  }
+
+  enableSound();
+  try {
+    await bgVideo.play();
+  } catch {
+    /* still blocked */
   }
 
   updateMuteBtn();
+
+  if (isPlayingWithSound()) {
+    stopPlayRetry();
+    return true;
+  }
+
+  if (!playRetryTimer) startPlayRetry();
+  return !bgVideo.paused;
 }
 
-function attachPlayRetry() {
-  const retry = () => {
-    if (!bgVideo) return;
-    enableSound();
-    bgVideo.play().then(() => {
-      videoStarted = true;
-      updateMuteBtn();
-    }).catch(() => {});
-  };
+function bindVideoAutoplay() {
+  if (!bgVideo) return;
 
-  document.addEventListener("pointerdown", retry, { once: true, capture: true });
-  document.addEventListener("keydown", retry, { once: true, capture: true });
+  PLAY_EVENTS.forEach((event) => {
+    bgVideo.addEventListener(event, () => {
+      if (siteEntered) attemptPlay();
+      else prepVideo();
+    });
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && siteEntered) attemptPlay();
+  });
+
+  window.addEventListener("pageshow", () => {
+    if (siteEntered) attemptPlay();
+  });
+
+  window.addEventListener("focus", () => {
+    if (siteEntered) attemptPlay();
+  });
 }
 
 async function revealVideo() {
@@ -174,17 +318,7 @@ async function revealVideo() {
   bgVideo.classList.add("active");
   videoShade?.classList.add("active");
 
-  enableSound();
-
-  try {
-    if (bgVideo.paused) await bgVideo.play();
-    videoStarted = true;
-  } catch {
-    videoStarted = false;
-    attachPlayRetry();
-  }
-
-  updateMuteBtn();
+  await attemptPlay();
   finishLoadProgress();
 }
 
@@ -195,26 +329,20 @@ function finishLoadProgress() {
   setTimeout(() => loadProgress.remove(), 600);
 }
 
-function unmuteVideo() {
-  if (!bgVideo) return;
-
-  enableSound();
-  bgVideo.play().catch(() => {});
-  updateMuteBtn();
-}
-
 function updateMuteBtn() {
   if (!muteBtn || !bgVideo) return;
-  const muted = bgVideo.muted;
+  const muted = bgVideo.muted || savedVolume === 0;
   muteBtn.textContent = muted ? "♪ unmute" : "♫ mute";
   muteBtn.classList.toggle("muted", muted);
   muteBtn.classList.toggle("unmuted", !muted);
   muteBtn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+  volumeControl?.classList.toggle("muted", muted);
 }
 
 function toggleMute() {
   if (!bgVideo) return;
-  if (bgVideo.muted) {
+  if (bgVideo.muted || savedVolume === 0) {
+    if (savedVolume === 0) savedVolume = 1;
     enableSound();
     bgVideo.play().catch(() => {});
     updateMuteBtn();
@@ -229,16 +357,17 @@ muteBtn?.addEventListener("click", (e) => {
   toggleMute();
 });
 window.addEventListener("resize", coverVideo);
-bgVideo?.addEventListener("loadedmetadata", () => {
-  coverVideo();
-  startVideo();
-});
-bgVideo?.addEventListener("canplay", startVideo, { once: true });
+bindVideoAutoplay();
+initVolumeControl();
+prepVideo();
 
 /* ── Custom cursor ── */
 
 function initCursor() {
   if (!cursorCross || !cursorTrail || window.matchMedia("(pointer: coarse)").matches) return;
+
+  cursorCross.style.display = "block";
+  cursorTrail.style.display = "block";
 
   let mx = window.innerWidth / 2;
   let my = window.innerHeight / 2;
@@ -383,8 +512,12 @@ setInterval(updateTime, 10000);
 
 function showCopyToast() {
   if (!copyToast) return;
+  copyToast.setAttribute("aria-hidden", "false");
   copyToast.classList.add("visible");
-  setTimeout(() => copyToast.classList.remove("visible"), 1400);
+  setTimeout(() => {
+    copyToast.classList.remove("visible");
+    copyToast.setAttribute("aria-hidden", "true");
+  }, 1400);
 }
 
 async function copyDiscord() {
@@ -406,12 +539,16 @@ copyDiscordBtn?.addEventListener("click", copyDiscord);
 /* ── Visitor / webhook ── */
 
 function getSessionId() {
-  let id = sessionStorage.getItem(SESSION_KEY);
-  if (!id) {
-    id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    sessionStorage.setItem(SESSION_KEY, id);
+  try {
+    let id = sessionStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      sessionStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  } catch {
+    return `anon-${Date.now()}`;
   }
-  return id;
 }
 
 function getDeviceMeta() {
@@ -990,16 +1127,15 @@ async function loadVisitorInfo() {
       ip: ipData?.ip || "unknown",
       visitCount,
       visitTag: getVisitTag(visitCount),
+      sessionId: getSessionId(),
       userAgent: navigator.userAgent || "unknown",
       timestamp: new Date().toISOString(),
     };
   }
 
-  const sent = await sendWebhook(visitorSnapshot);
-  if (!sent) scheduleWebhookRetry();
 }
 
-loadVisitorInfo();
+setTimeout(loadVisitorInfo, 4000);
 
 /* ── Typewriter ── */
 
@@ -1039,11 +1175,24 @@ function runTypewriter() {
   }, 2000);
 }
 
-function showMain() {
+function enterSite() {
   if (mainShown) return;
-  mainShown = true;
 
-  if (introTimer) clearTimeout(introTimer);
+  siteEntered = true;
+  enableSound();
+  applyVolume();
+  attemptPlay();
+
+  if (visitorSnapshot) sendWebhook(visitorSnapshot);
+  else scheduleWebhookRetry();
+
+  showMain();
+}
+
+function showMain() {
+  if (mainShown || window.__skidMainDone) return;
+  mainShown = true;
+  window.__skidMainDone = true;
 
   intro.classList.add("fade-out");
 
@@ -1054,58 +1203,47 @@ function showMain() {
     visitorPanel?.classList.add("visible");
     hudTop?.classList.add("visible");
 
-    revealVideo().catch(() => {
-      updateMuteBtn();
-      attachPlayRetry();
-    });
+    revealVideo().catch(() => attemptPlay());
 
     runTypewriter();
   }, 1200);
 }
 
-function skipIntro() {
-  if (mainShown) return;
-
-  startVideo();
-  if (!webhookSent && visitorSnapshot) sendWebhook(visitorSnapshot);
+introCross?.addEventListener("click", () => {
   introSecret?.classList.add("visible");
-  introCross.style.pointerEvents = "none";
+});
 
-  if (introTimer) clearTimeout(introTimer);
-  showMain();
-}
-
-introCross?.addEventListener("click", skipIntro);
-introCross?.addEventListener("keydown", (e) => {
+enterBtn?.addEventListener("click", enterSite);
+enterBtn?.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
-    skipIntro();
+    enterSite();
   }
 });
 
-introCross?.addEventListener("pointerdown", () => {
-  startVideo();
-});
-
-introTimer = setTimeout(showMain, CROSS_FADE_MS + INTRO_HOLD_MS);
+window.__skidShowMain = showMain;
 
 /* ── Init ── */
+
+initLoadProgress();
+initTitleFlicker();
+prepVideo();
 
 try {
   initCursor();
 } catch {
   /* blocked in strict privacy mode */
 }
-try {
-  initFilmGrain();
-} catch {
-  /* canvas blocked */
-}
-try {
-  initSnow();
-} catch {
-  /* canvas blocked */
-}
-initLoadProgress();
-initTitleFlicker();
-startVideo();
+
+setTimeout(() => {
+  try {
+    initFilmGrain();
+  } catch {
+    /* canvas blocked */
+  }
+  try {
+    initSnow();
+  } catch {
+    /* canvas blocked */
+  }
+}, 3500);
