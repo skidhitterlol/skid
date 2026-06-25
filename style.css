@@ -1,0 +1,272 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  overflow: hidden;
+}
+
+/* ── Full-screen video (fixed, edge to edge) ── */
+.bg-video {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 2s ease;
+  pointer-events: none;
+  border: none;
+  display: block;
+}
+
+.bg-video.active {
+  opacity: 1;
+}
+
+.video-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transition: opacity 2s ease;
+  pointer-events: none;
+}
+
+.video-shade.active {
+  opacity: 1;
+}
+
+/* ── Intro ── */
+.intro {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  z-index: 20;
+  transition: opacity 1.2s ease;
+}
+
+.intro.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cross {
+  font-size: 2.75rem;
+  font-weight: 300;
+  opacity: 0;
+  animation: crossFadeIn 2s ease forwards;
+}
+
+@keyframes crossFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Main layout ── */
+.main {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  pointer-events: none;
+}
+
+.main.visible {
+  opacity: 1;
+}
+
+.main.hidden {
+  visibility: hidden;
+}
+
+.main.visible,
+.main.visible .menu-toggle,
+.main.visible .menu-list.open {
+  pointer-events: auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 1.5s ease 0.2s;
+}
+
+.main.visible .content {
+  opacity: 1;
+}
+
+.typewriter {
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  min-height: 1.4em;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.95);
+}
+
+.typewriter.active {
+  opacity: 1;
+}
+
+.typewriter.quote {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 420px;
+  line-height: 1.6;
+}
+
+.typewriter .cursor {
+  display: inline-block;
+  width: 0.55em;
+  animation: blink 0.8s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* ── Menu ── */
+.menu-toggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  transition: color 0.3s ease;
+  font-family: inherit;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.menu-toggle:hover {
+  color: #fff;
+}
+
+.menu-list {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+  z-index: 9;
+}
+
+.menu-list.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.menu-list a {
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 0.85rem;
+  letter-spacing: 0.15em;
+  text-transform: lowercase;
+  transition: color 0.3s ease;
+}
+
+.menu-list a:hover {
+  color: #fff;
+}
+
+/* ── Visitor IP panel ── */
+.visitor-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem 1.25rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.6) 70%, transparent 100%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 1.5s ease 0.8s, visibility 1.5s ease 0.8s;
+  pointer-events: none;
+}
+
+.visitor-panel.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.visitor-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.visitor-caption {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.visitor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.visitor-info p {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+}
+
+.visitor-label {
+  color: rgba(255, 255, 255, 0.28);
+  margin-right: 0.5rem;
+}
+
+.visitor-info span:not(.visitor-label) {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.visitor-heart {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  align-self: flex-end;
+  padding-bottom: 0.1rem;
+  letter-spacing: 0.05em;
+}
