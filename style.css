@@ -203,20 +203,19 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  z-index: 18;
+  z-index: 30;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   padding: 1.15rem 1.25rem;
   pointer-events: none;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 1s ease, visibility 1s ease;
+  transition: opacity 1s ease;
 }
 
 .hud-top.visible {
   opacity: 1;
-  visibility: visible;
+  pointer-events: auto;
 }
 
 .hud-right {
@@ -230,6 +229,7 @@ body {
   color: rgba(255, 255, 255, 0.65);
   letter-spacing: 0.06em;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
 }
 
 .control-btn {
@@ -241,9 +241,11 @@ body {
   color: rgba(255, 255, 255, 0.75);
   letter-spacing: 0.06em;
   padding: 0.35rem 0.55rem;
-  cursor: none;
+  cursor: pointer;
   transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .control-btn:hover,
