@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[ skid]</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: "Courier New", Courier, monospace;
+      overflow: hidden;
+    }
+    .intro {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      gap: 1.5rem;
+    }
+    .hud-top {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 1.15rem 1.25rem;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .hud-top.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .hud-right {
+      display: flex;
+      gap: 0.65rem;
+    }
+    #main.hidden,
+    .copy-toast,
+    .intro-secret {
+      display: none !important;
+    }
+    .intro-secret.visible {
+      display: block !important;
+    }
+    .copy-toast.visible {
+      display: block !important;
+    }
+  </style>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <video id="bg-video" class="bg-video" src="https://cdn.discordapp.com/attachments/1514060040091471994/1519750308677292263/background.mp4?ex=6a3eb145&is=6a3d5fc5&hm=d59416bb76e386a85e03a9827a8fefe4f3e4f754391a430924221f36d17ad9ae&" autoplay loop playsinline preload="auto" aria-hidden="true"></video>
+  <script>
+    (function () {
+      var v = document.getElementById("bg-video");
+      if (!v) return;
+
+      function bootPlay() {
+        v.muted = true;
+        v.setAttribute("muted", "");
+        v.play().catch(function () {});
+      }
+
+      v.addEventListener("loadeddata", bootPlay);
+      v.addEventListener("canplay", bootPlay);
+      if (v.readyState >= 2) bootPlay();
+    })();
+  </script>
+  <div class="video-shade" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <canvas id="film-grain" class="film-grain" aria-hidden="true"></canvas>
+  <div class="scanlines" aria-hidden="true"></div>
+  <canvas id="snow" class="snow" aria-hidden="true"></canvas>
+
+  <div id="load-progress" class="load-progress" aria-hidden="true">
+    <div class="load-progress-bar" id="load-progress-bar"></div>
+  </div>
+
+  <div class="cursor-cross" id="cursor-cross" aria-hidden="true">†</div>
+  <div class="cursor-trail" id="cursor-trail" aria-hidden="true">†</div>
+
+  <div id="intro" class="intro">
+    <span class="cross" id="intro-cross" aria-hidden="true">†</span>
+    <button id="enter-btn" class="enter-btn" type="button">enter</button>
+    <p class="intro-secret" id="intro-secret">i never left.</p>
+  </div>
+
+  <div class="hud-top" id="hud-top">
+    <p id="time-display" class="time-display">local time: --:--</p>
+    <div class="hud-right">
+      <button id="copy-discord" class="control-btn" type="button">discord · 8_v</button>
+      <div class="volume-control">
+        <span class="volume-label" aria-hidden="true">vol</span>
+        <input id="volume-slider" class="volume-slider" type="range" min="0" max="100" value="100" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+      </div>
+      <button id="mute-btn" class="control-btn unmuted" type="button" aria-label="Mute">♫ mute</button>
+    </div>
+  </div>
+
+  <div id="main" class="main hidden">
+    <div class="content">
+      <p class="typewriter" id="title-text"></p>
+      <p class="typewriter quote" id="quote-text"></p>
+    </div>
+
+    <footer id="visitor-panel" class="visitor-panel">
+      <div class="visitor-block">
+        <p class="visit-count" id="visit-count"></p>
+        <div class="visitor-info">
+          <p><span class="visitor-label">ip</span> <span id="visitor-ip">···</span></p>
+          <p><span class="visitor-label">location</span> <span id="visitor-location">···</span></p>
+          <p><span class="visitor-label">provider</span> <span id="visitor-provider">···</span></p>
+        </div>
+      </div>
+      <span class="visitor-heart">&lt;3</span>
+    </footer>
+  </div>
+
+  <div id="copy-toast" class="copy-toast" aria-live="polite" aria-hidden="true">copied</div>
+
+  <script>
+    window.__skidRevealMainFallback = function () {};
+  </script>
+  <script src="loader.js"></script>
+</body>
+</html>
